@@ -5,6 +5,8 @@ import java.time.Instant
 import scala.collection.immutable.Seq
 
 object RegistrationHandler {
+  final case object EnableRegistration
+
   final case class Record(id: Int, name: String, members: Seq[String])
 
   final case class LocalRegistration(id: Int, name: String, lastUpdated: Long)
@@ -16,6 +18,8 @@ object RegistrationHandler {
   final case class Refresh(topic: String, id: Int, name: String)
 
   final case class Remove(topic: String, id: Int, name: String)
+
+  def props: Props = Props[RegistrationHandler]
 }
 
 final class RegistrationHandler extends Actor {
@@ -24,6 +28,9 @@ final class RegistrationHandler extends Actor {
   override def receive: Receive = handle(currentTime(), Map.empty)
 
   private def handle(startTime: Long, registrations: Map[String, Seq[LocalRegistration]]): Receive = {
+    case EnableRegistration =>
+      context.become(handle(0L, registrations))
+
     case Inspect(topic) =>
       val rs = registrations.getOrElse(topic, Vector.empty)
       val names = rs.map(_.name)

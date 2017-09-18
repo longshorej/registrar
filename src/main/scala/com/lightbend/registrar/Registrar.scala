@@ -14,7 +14,7 @@ object Registrar {
     implicit val executionContext = system.dispatcher
     implicit val timeout = Timeout(5.seconds) // @TODO config
 
-    val registrationHandlerRef = system.actorOf(Props[RegistrationHandler], "registration-handler")
+    val registrationHandlerRef = system.actorOf(RegistrationHandler.props, "registration-handler")
 
     val bindingFuture = Http().bindAndHandle(net.route(registrationHandlerRef), "0.0.0.0", 8080) // @TODO config
 
