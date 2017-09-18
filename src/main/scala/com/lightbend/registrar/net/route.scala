@@ -1,20 +1,20 @@
-package com.lightbend.registrar
+package com.lightbend.registrar.net
 
 import akka.actor.ActorRef
 import akka.http.scaladsl.model.StatusCodes
 import akka.pattern.ask
 import akka.http.scaladsl.server._
 import akka.util.Timeout
-
+import com.lightbend.registrar.RegistrationHandler
 import scala.collection.immutable.Seq
 import scala.concurrent.ExecutionContext
 
-package object net {
+object route {
   import Directives._
   import JsonSupport._
   import RegistrationHandler._
 
-  def route(registrationHandlerRef: ActorRef)
+  def apply(registrationHandlerRef: ActorRef)
            (implicit ec: ExecutionContext, timeout: Timeout) =
     path("ping") {
       complete("pong!")
