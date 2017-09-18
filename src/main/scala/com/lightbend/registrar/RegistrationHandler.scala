@@ -24,72 +24,68 @@ final class RegistrationHandler extends Actor {
   override def receive: Receive = handle(currentTime(), Map.empty)
 
   private def handle(startTime: Long, registrations: Map[String, Seq[LocalRegistration]]): Receive = {
-    val now = currentTime()
+    case Inspect(topic) =>
+      val rs = registrations.getOrElse(topic, Vector.empty)
+      val names = rs.map(_.name)
 
-    val allowRegistration = allow(now, startTime)
+      sender() ! rs.map(r => Record(r.id, r.name, names))
 
-    def registrationsForTopic(topic: String) =
-      registrations
-        .getOrElse(topic, Vector.empty)
-        .filterNot(e => expired(now, e.lastUpdated))
+      context.become(handle(startTime, registrations))
 
-    {
-      case Inspect(topic) =>
-        val rs = registrations.getOrElse(topic, Vector.empty)
-        val names = rs.map(_.name)
+    case Register(topic, name) =>
+      val now = currentTime()
+      val topicRegistrations = registrationsForTopic(registrations, now, topic)
 
-        sender() ! rs.map(r => Record(r.id, r.name, names))
+      if (!allowRegistration(now, startTime) || topicRegistrations.exists(_.name == name)) {
+        sender() ! None
+      } else {
+        val registration = LocalRegistration(topicRegistrations.lastOption.fold(1)(_.id + 1), name, now)
 
-        context.become(handle(startTime, registrations))
+        val newTopicRegistrations = topicRegistrations :+ registration
 
-      case Register(topic, name) =>
-        val topicRegistrations = registrationsForTopic(topic)
+        sender() ! Some(Record(registration.id, name, newTopicRegistrations.map(_.name)))
 
-        if (!allowRegistration || topicRegistrations.exists(_.name == name)) {
-          sender() ! None
-        } else {
-          val registration = LocalRegistration(topicRegistrations.lastOption.fold(1)(_.id + 1), name, now)
+        context.become(handle(startTime, registrations.updated(topic, newTopicRegistrations)))
+      }
 
-          val newTopicRegistrations = topicRegistrations :+ registration
+    case Refresh(topic, id, name) =>
+      val now = currentTime()
+      val topicRegistrations = registrationsForTopic(registrations, now, topic)
 
-          sender() ! Some(Record(registration.id, name, newTopicRegistrations.map(_.name)))
+      val (updated, rs) =
+        topicRegistrations.foldLeft((false, Seq.empty[LocalRegistration])) {
+          case ((false, entries), entry) if entry.name == name && entry.id == id =>
+            true -> (entries :+ LocalRegistration(id, name, now))
 
-          context.become(handle(startTime, registrations.updated(topic, newTopicRegistrations)))
+          case ((found, entries), entry) =>
+            found -> (entries :+ entry)
         }
 
-      case Refresh(topic, id, name) =>
-        val topicRegistrations = registrationsForTopic(topic)
+      val (updatedOrRegistered, updatedTopicRegistrations) =
+        if (allowRegistration(now, startTime) || updated)
+          updated -> rs
+        else
+          true -> (rs :+ LocalRegistration(id, name, now)).sortBy(_.id)
 
-        val (updated, rs) =
-          topicRegistrations.foldLeft((false, Seq.empty[LocalRegistration])) {
-            case ((false, entries), entry) if entry.name == name && entry.id == id =>
-              true -> (entries :+ LocalRegistration(id, name, now))
+      sender() ! updatedOrRegistered
 
-            case ((found, entries), entry) =>
-              found -> (entries :+ entry)
-          }
+      context.become(handle(startTime, registrations.updated(topic, updatedTopicRegistrations)))
 
-        val (updatedOrRegistered, updatedTopicRegistrations) =
-          if (allowRegistration || updated)
-            updated -> rs
-          else
-            true -> (rs :+ LocalRegistration(id, name, now)).sortBy(_.id)
+    case Remove(topic, id, name) =>
+      val now = currentTime()
+      val original = registrationsForTopic(registrations, now, topic)
+      val modified = original.filterNot(e => e.name == name && e.id == id)
 
-        sender() ! updatedOrRegistered
+      sender() ! (original.length != modified.length)
 
-        context.become(handle(startTime, registrations.updated(topic, updatedTopicRegistrations)))
-
-      case Remove(topic, id, name) =>
-        val original = registrationsForTopic(topic)
-        val now = registrationsForTopic(topic).filterNot(e => e.name == name && e.id == id)
-
-        sender() ! (original.length != now.length)
-
-        context.become(handle(startTime, registrations.updated(topic, now)))
-    }
+      context.become(handle(startTime, registrations.updated(topic, modified)))
   }
 
-  private def allow(now: Long, startTime: Long) = now >= startTime + 0L // @TODO config
+  private def allowRegistration(now: Long, startTime: Long) = now >= startTime + 60000L // @TODO config
   private def currentTime(): Long = Instant.now.toEpochMilli
   private def expired(now: Long, value: Long) = now >= value + 60000L // @TODO config
+  private def registrationsForTopic(registrations: Map[String, Seq[LocalRegistration]], now: Long, topic: String) =
+    registrations
+      .getOrElse(topic, Vector.empty)
+      .filterNot(e => expired(now, e.lastUpdated))
 }
