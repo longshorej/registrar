@@ -21,6 +21,9 @@ object route {
       complete("pong!")
     } ~
     pathPrefix("topics") {
+      (get & pathEndOrSingleSlash) {
+        complete((registrationHandlerRef ? InspectTopics).mapTo[Set[String]])
+      } ~
       (post & path(Segment) & entity(as[String])) { case (topic, name) =>
         complete((registrationHandlerRef ? Register(topic, name)).mapTo[Option[Record]])
       } ~
