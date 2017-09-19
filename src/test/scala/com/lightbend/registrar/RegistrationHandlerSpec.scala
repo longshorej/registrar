@@ -36,7 +36,7 @@ class RegistrationHandlerSpec() extends TestKit(ActorSystem("registrar", Registr
 
       handler ! RegistrationHandler.Register("test", "one")
 
-      expectMsg(Some(RegistrationHandler.Record(1, "one", Seq("one"))))
+      expectMsg(Some(RegistrationHandler.Record(1, "one", Seq("one"), 10000L)))
 
       handler ! RegistrationHandler.Register("test", "one")
 
@@ -50,15 +50,15 @@ class RegistrationHandlerSpec() extends TestKit(ActorSystem("registrar", Registr
 
       handler ! RegistrationHandler.Register("test", "one")
 
-      expectMsg(Some(RegistrationHandler.Record(1, "one", Seq("one"))))
+      expectMsg(Some(RegistrationHandler.Record(1, "one", Seq("one"), 10000L)))
 
       handler ! RegistrationHandler.Register("test2", "one")
 
-      expectMsg(Some(RegistrationHandler.Record(1, "one", Seq("one"))))
+      expectMsg(Some(RegistrationHandler.Record(1, "one", Seq("one"), 10000L)))
 
       handler ! RegistrationHandler.Inspect("test2")
 
-      expectMsg(Vector(Record(1, "one", Seq("one"))))
+      expectMsg(Vector(Record(1, "one", Seq("one"), 10000L)))
     }
 
     "reject registrations during holding period" in {
@@ -80,7 +80,7 @@ class RegistrationHandlerSpec() extends TestKit(ActorSystem("registrar", Registr
 
       handler ! RegistrationHandler.Register("test", "one")
 
-      expectMsg(Some(RegistrationHandler.Record(1, "one", Seq("one"))))
+      expectMsg(Some(RegistrationHandler.Record(1, "one", Seq("one"), 10000L)))
     }
 
     "exclude expired values" in {
@@ -90,7 +90,7 @@ class RegistrationHandlerSpec() extends TestKit(ActorSystem("registrar", Registr
 
       handler ! RegistrationHandler.Register("test", "one")
 
-      expectMsg(Some(RegistrationHandler.Record(1, "one", Seq("one"))))
+      expectMsg(Some(RegistrationHandler.Record(1, "one", Seq("one"), 10000L)))
 
       Thread.sleep(500)
 
@@ -100,7 +100,7 @@ class RegistrationHandlerSpec() extends TestKit(ActorSystem("registrar", Registr
 
       handler ! RegistrationHandler.Register("test", "two")
 
-      expectMsg(Some(RegistrationHandler.Record(1, "two", Seq("two"))))
+      expectMsg(Some(RegistrationHandler.Record(1, "two", Seq("two"), 10000L)))
     }
 
     "allow refresh during holding period" in {
@@ -128,7 +128,7 @@ class RegistrationHandlerSpec() extends TestKit(ActorSystem("registrar", Registr
 
       handler ! RegistrationHandler.Register("test", "one")
 
-      expectMsg(Some(RegistrationHandler.Record(1, "one", Seq("one"))))
+      expectMsg(Some(RegistrationHandler.Record(1, "one", Seq("one"), 10000L)))
 
       handler ! RegistrationHandler.Remove("test", 1, "one")
 
@@ -146,11 +146,11 @@ class RegistrationHandlerSpec() extends TestKit(ActorSystem("registrar", Registr
 
       handler ! RegistrationHandler.Register("test1", "one")
 
-      expectMsg(Some(RegistrationHandler.Record(1, "one", Seq("one"))))
+      expectMsg(Some(RegistrationHandler.Record(1, "one", Seq("one"), 10000L)))
 
       handler ! RegistrationHandler.Register("test2", "one")
 
-      expectMsg(Some(RegistrationHandler.Record(1, "one", Seq("one"))))
+      expectMsg(Some(RegistrationHandler.Record(1, "one", Seq("one"), 10000L)))
 
       handler ! RegistrationHandler.InspectTopics
 

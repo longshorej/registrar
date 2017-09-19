@@ -7,5 +7,5 @@ import spray.json.DefaultJsonProtocol
 object JsonSupport extends SprayJsonSupport with DefaultJsonProtocol {
   import RegistrationHandler._
 
-  implicit val recordFormat = jsonFormat3(Record.apply)
+  implicit val recordFormat = jsonFormat4(Record.apply)
 }

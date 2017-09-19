@@ -7,7 +7,7 @@ import scala.collection.immutable.Seq
 object RegistrationHandler {
   final case object EnableRegistration
 
-  final case class Record(id: Int, name: String, members: Seq[String])
+  final case class Record(id: Int, name: String, members: Seq[String], refreshInterval: Long)
 
   final case class LocalRegistration(id: Int, name: String, lastUpdated: Long)
 
@@ -45,7 +45,7 @@ final class RegistrationHandler extends Actor {
       val rs = registrationsForTopic(registrations, now, topic)
       val names = rs.map(_.name)
 
-      sender() ! rs.map(r => Record(r.id, r.name, names))
+      sender() ! rs.map(r => Record(r.id, r.name, names, settings.registration.refreshInterval.duration.toMillis))
 
     case Register(topic, name) =>
       val now = currentTime()
@@ -58,7 +58,14 @@ final class RegistrationHandler extends Actor {
 
         val newTopicRegistrations = topicRegistrations :+ registration
 
-        sender() ! Some(Record(registration.id, name, newTopicRegistrations.map(_.name)))
+        sender() ! Some(
+          Record(
+            registration.id,
+            name,
+            newTopicRegistrations.map(_.name),
+            settings.registration.refreshInterval.duration.toMillis
+          )
+        )
 
         context.become(handle(startTime, updateRegistrations(registrations, topic, newTopicRegistrations)))
       }

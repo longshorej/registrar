@@ -18,6 +18,7 @@ class Settings(settings: ActorSystem.Settings) {
   object registration {
     val expireAfter = akkaTimeout(registrar.getDuration("registration.expire-after"))
     val holdingPeriod = akkaTimeout(registrar.getDuration("registration.holding-period"))
+    val refreshInterval = akkaTimeout(registrar.getDuration("registration.refresh-interval"))
   }
 
   private def akkaTimeout(duration: Duration): Timeout = Timeout(duration.toMillis, TimeUnit.MILLISECONDS)

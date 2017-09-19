@@ -10,12 +10,12 @@ class JsonSupportSpec extends WordSpec
                       with Matchers {
   "JsonSupportSpec" should {
     "Encode Record" in {
-      Record(1, "hello", Vector("foo", "bar")).toJson.compactPrint shouldEqual """{"id":1,"name":"hello","members":["foo","bar"]}"""
+      Record(1, "hello", Vector("foo", "bar"), 10000L).toJson.compactPrint shouldEqual """{"id":1,"name":"hello","members":["foo","bar"],"refreshInterval":10000}"""
 
-      Record(2, "", Vector.empty).toJson.compactPrint shouldEqual """{"id":2,"name":"","members":[]}"""
+      Record(2, "", Vector.empty, 10000L).toJson.compactPrint shouldEqual """{"id":2,"name":"","members":[],"refreshInterval":10000}"""
 
       assertThrows[IllegalArgumentException] {
-        Record(3, null, Vector.empty).toJson.compactPrint
+        Record(3, null, Vector.empty, 10000L).toJson.compactPrint
       }
     }
   }

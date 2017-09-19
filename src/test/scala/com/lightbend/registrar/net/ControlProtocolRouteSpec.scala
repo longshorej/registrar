@@ -61,7 +61,7 @@ class ControlProtocolRouteSpec extends WordSpec
     "list members of a known topic" in {
       Get("/topics/test1") ~> route ~> check {
         response.status.isSuccess shouldEqual true
-        responseAs[String] shouldEqual """[{"id":1,"name":"test1","members":["test1","test2"]},{"id":2,"name":"test2","members":["test1","test2"]}]"""
+        responseAs[String] shouldEqual """[{"id":1,"name":"test1","members":["test1","test2"],"refreshInterval":10000},{"id":2,"name":"test2","members":["test1","test2"],"refreshInterval":10000}]"""
       }
     }
 
@@ -75,7 +75,7 @@ class ControlProtocolRouteSpec extends WordSpec
     "create new member in a topic" in {
       Post("/topics/test1", "test5") ~> route ~> check {
         response.status.isSuccess shouldEqual true
-        responseAs[String] shouldEqual """{"id":3,"name":"test5","members":["test1","test2","test5"]}"""
+        responseAs[String] shouldEqual """{"id":3,"name":"test5","members":["test1","test2","test5"],"refreshInterval":10000}"""
       }
     }
 
