@@ -1,14 +1,13 @@
 package com.lightbend.registrar
 
-import java.time.Duration
-
 import akka.actor.ActorSystem
 import akka.util.Timeout
+import java.time.Duration
 import java.util.concurrent.TimeUnit
 
-class Settings(system: ActorSystem) {
-  private lazy val config = system.settings.config
-  private lazy val registrar = config.getConfig("lightbend.registrar")
+class Settings(settings: ActorSystem.Settings) {
+  private lazy val config = settings.config
+  private lazy val registrar = config.getConfig("registrar")
 
   object net {
     implicit val askTimeout = akkaTimeout(registrar.getDuration("net.ask-timeout"))
@@ -23,4 +22,3 @@ class Settings(system: ActorSystem) {
 
   private def akkaTimeout(duration: Duration): Timeout = Timeout(duration.toMillis, TimeUnit.MILLISECONDS)
 }
-

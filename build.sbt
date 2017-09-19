@@ -14,6 +14,7 @@ libraryDependencies ++= Vector(
   "com.typesafe.akka" %% "akka-stream"          % Versions.Akka,
   "com.typesafe.akka" %% "akka-http"            % Versions.AkkaHttp,
   "com.typesafe.akka" %% "akka-http-spray-json" % Versions.AkkaHttp,
+  "com.typesafe.akka" %% "akka-http-testkit"    % Versions.AkkaHttp      % "test",
   "com.typesafe.akka" %% "akka-testkit"         % Versions.Akka          % "test",
   "io.spray"          %% "spray-json"           % Versions.SprayJson,
   "org.scalatest"     %% "scalatest"            % Versions.ScalaTest     % "test"

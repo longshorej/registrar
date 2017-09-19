@@ -1,17 +1,16 @@
 package com.lightbend.registrar
 
 import akka.actor.ActorSystem
-import akka.testkit.{ImplicitSender, TestKit}
+import akka.testkit.{ ImplicitSender, TestKit }
 import com.lightbend.registrar.RegistrationHandler.Record
 import com.typesafe.config.ConfigFactory
-import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
-
+import org.scalatest.{ BeforeAndAfterAll, Matchers, WordSpecLike }
 import scala.collection.immutable.Seq
 
 object RegistrationHandlerSpec {
   def config = ConfigFactory
     .parseString(
-      s"""|lightbend.registrar {
+      s"""|registrar {
           |  registration.expire-after = 250ms
           |  registration.holding-period = 250ms
           |}

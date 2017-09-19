@@ -27,7 +27,7 @@ object RegistrationHandler {
 final class RegistrationHandler extends Actor {
   import RegistrationHandler._
 
-  private val settings = new Settings(context.system)
+  private val settings = new Settings(context.system.settings)
 
   override def receive: Receive = handle(currentTime(), Map.empty)
 
