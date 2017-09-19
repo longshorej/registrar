@@ -11,6 +11,8 @@ object RegistrationHandler {
 
   final case class LocalRegistration(id: Int, name: String, lastUpdated: Long)
 
+  final case object InspectTopics
+
   final case class Inspect(topic: String)
 
   final case class Register(topic: String, name: String)
@@ -33,13 +35,17 @@ final class RegistrationHandler extends Actor {
     case EnableRegistration =>
       context.become(handle(0L, registrations))
 
+    case InspectTopics =>
+      val now = currentTime()
+
+      sender() ! registrations.keySet.filter(topic => hasRegistrationForTopic(registrations, now, topic))
+
     case Inspect(topic) =>
-      val rs = registrations.getOrElse(topic, Vector.empty)
+      val now = currentTime()
+      val rs = registrationsForTopic(registrations, now, topic)
       val names = rs.map(_.name)
 
       sender() ! rs.map(r => Record(r.id, r.name, names))
-
-      context.become(handle(startTime, registrations))
 
     case Register(topic, name) =>
       val now = currentTime()
@@ -54,7 +60,7 @@ final class RegistrationHandler extends Actor {
 
         sender() ! Some(Record(registration.id, name, newTopicRegistrations.map(_.name)))
 
-        context.become(handle(startTime, registrations.updated(topic, newTopicRegistrations)))
+        context.become(handle(startTime, updateRegistrations(registrations, topic, newTopicRegistrations)))
       }
 
     case Refresh(topic, id, name) =>
@@ -78,7 +84,7 @@ final class RegistrationHandler extends Actor {
 
       sender() ! updatedOrRegistered
 
-      context.become(handle(startTime, registrations.updated(topic, updatedTopicRegistrations)))
+      context.become(handle(startTime, updateRegistrations(registrations, topic, updatedTopicRegistrations)))
 
     case Remove(topic, id, name) =>
       val now = currentTime()
@@ -87,7 +93,7 @@ final class RegistrationHandler extends Actor {
 
       sender() ! (original.length != modified.length)
 
-      context.become(handle(startTime, registrations.updated(topic, modified)))
+      context.become(handle(startTime, updateRegistrations(registrations, topic, modified)))
   }
 
   private def allowRegistration(now: Long, startTime: Long) =
@@ -99,8 +105,19 @@ final class RegistrationHandler extends Actor {
   private def expired(now: Long, value: Long) =
     now >= value + settings.registration.expireAfter.duration.toMillis
 
+  private def hasRegistrationForTopic(registrations: Map[String, Seq[LocalRegistration]], now: Long, topic: String) =
+    registrations.get(topic).fold(false)(_.exists(e => !expired(now, e.lastUpdated)))
+
   private def registrationsForTopic(registrations: Map[String, Seq[LocalRegistration]], now: Long, topic: String) =
     registrations
       .getOrElse(topic, Vector.empty)
       .filterNot(e => expired(now, e.lastUpdated))
+
+  private def updateRegistrations(allRegistrations: Map[String, Seq[LocalRegistration]],
+                                  topic: String,
+                                  registrations: Seq[LocalRegistration]) =
+    if (registrations.isEmpty)
+      allRegistrations - topic
+    else
+      allRegistrations.updated(topic, registrations)
 }
