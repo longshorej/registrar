@@ -25,6 +25,8 @@ object RegistrationHandler {
 final class RegistrationHandler extends Actor {
   import RegistrationHandler._
 
+  private val settings = new Settings(context.system)
+
   override def receive: Receive = handle(currentTime(), Map.empty)
 
   private def handle(startTime: Long, registrations: Map[String, Seq[LocalRegistration]]): Receive = {
@@ -88,9 +90,15 @@ final class RegistrationHandler extends Actor {
       context.become(handle(startTime, registrations.updated(topic, modified)))
   }
 
-  private def allowRegistration(now: Long, startTime: Long) = now >= startTime + 60000L // @TODO config
-  private def currentTime(): Long = Instant.now.toEpochMilli
-  private def expired(now: Long, value: Long) = now >= value + 60000L // @TODO config
+  private def allowRegistration(now: Long, startTime: Long) =
+    now >= startTime + settings.registration.holdingPeriod.duration.toMillis
+
+  private def currentTime(): Long =
+    Instant.now.toEpochMilli
+
+  private def expired(now: Long, value: Long) =
+    now >= value + settings.registration.expireAfter.duration.toMillis
+
   private def registrationsForTopic(registrations: Map[String, Seq[LocalRegistration]], now: Long, topic: String) =
     registrations
       .getOrElse(topic, Vector.empty)

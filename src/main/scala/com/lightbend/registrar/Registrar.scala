@@ -1,10 +1,8 @@
 package com.lightbend.registrar
 
-import akka.actor.{ActorSystem, Props}
+import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.stream.ActorMaterializer
-import akka.util.Timeout
-import scala.concurrent.duration._
 import scala.io.StdIn
 
 object Registrar {
@@ -12,15 +10,17 @@ object Registrar {
     implicit val system = ActorSystem("registrar")
     implicit val materializer = ActorMaterializer()
     implicit val executionContext = system.dispatcher
-    implicit val timeout = Timeout(5.seconds) // @TODO config
+    val settings = new Settings(system)
 
     val registrationHandlerRef = system.actorOf(RegistrationHandler.props, "registration-handler")
 
-    val bindingFuture = Http().bindAndHandle(net.route(registrationHandlerRef), "0.0.0.0", 8080) // @TODO config
+    val bindingFuture =
+      Http().bindAndHandle(net.route(registrationHandlerRef, settings), settings.net.bindInterface, settings.net.bindPort)
 
+    system.log.info(s"Listening on ${settings.net.bindInterface}:${settings.net.bindPort}")
 
-    println(s"Server online at http://localhost:8080/\nPress RETURN to stop...")
     StdIn.readLine()
+
     bindingFuture
       .flatMap(_.unbind())
       .onComplete(_ => system.terminate())

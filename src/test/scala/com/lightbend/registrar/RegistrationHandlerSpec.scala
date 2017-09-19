@@ -1,7 +1,7 @@
 package com.lightbend.registrar
 
 import akka.actor.ActorSystem
-import akka.testkit.{ ImplicitSender, TestActors, TestKit }
+import akka.testkit.{ ImplicitSender, TestKit }
 import org.scalatest.{ BeforeAndAfterAll, Matchers, WordSpecLike }
 import scala.collection.immutable.Seq
 
@@ -9,7 +9,6 @@ class RegistrationHandlerSpec() extends TestKit(ActorSystem("registrar")) with I
                                                                           with WordSpecLike
                                                                           with Matchers
                                                                           with BeforeAndAfterAll {
-
   override def afterAll {
     TestKit.shutdownActorSystem(system)
   }
