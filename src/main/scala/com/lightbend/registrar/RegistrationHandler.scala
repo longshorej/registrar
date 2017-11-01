@@ -9,7 +9,11 @@ object RegistrationHandler {
 
   final case class Record(id: Int, name: String, members: Seq[String], refreshInterval: Long)
 
-  final case class LocalRegistration(id: Int, name: String, lastUpdated: Long)
+  final case class LocalRegistration(id: Int, name: String, lastUpdated: Long) {
+    val registration: Registration = Registration(id, name)
+  }
+
+  final case class Registration(id: Int, name: String)
 
   final case object InspectTopics
 
@@ -17,7 +21,9 @@ object RegistrationHandler {
 
   final case class Register(topic: String, name: String)
 
-  final case class Refresh(topic: String, id: Int, name: String)
+  final case class Refresh(topic: String, registrations: Set[Registration])
+
+  final case class RefreshResult(accepted: Set[Registration], rejected: Set[Registration])
 
   final case class Remove(topic: String, id: Int, name: String)
 
@@ -70,28 +76,37 @@ final class RegistrationHandler extends Actor {
         context.become(handle(startTime, updateRegistrations(registrations, topic, newTopicRegistrations)))
       }
 
-    case Refresh(topic, id, name) =>
+    case Refresh(topic, names) =>
       val now = currentTime()
       val topicRegistrations = registrationsForTopic(registrations, now, topic)
+      val topicRegistrationsSet = topicRegistrations.map(_.registration).toSet
+      val allowReg = allowRegistration(now, startTime)
 
-      val (updated, rs) =
-        topicRegistrations.foldLeft((false, Seq.empty[LocalRegistration])) {
-          case ((false, entries), entry) if entry.name == name && entry.id == id =>
-            true -> (entries :+ LocalRegistration(id, name, now))
+      val (accepted, rejected) =
+        if (allowReg)
+          names.partition(topicRegistrationsSet.contains)
+        else
+          names -> Set.empty[Registration]
 
-          case ((found, entries), entry) =>
-            found -> (entries :+ entry)
+      val rs =
+        if (allowReg) {
+            topicRegistrations.foldLeft(Seq.empty[LocalRegistration]) { case (entries, entry) =>
+              if (accepted.contains(entry.registration))
+                entries :+ LocalRegistration(entry.id, entry.name, now)
+              else
+                entries :+ entry
+            }
+        } else {
+          accepted.foldLeft(topicRegistrations) { case (entries, entry) =>
+            entries
+              .filterNot(_.name == entry.name)
+              .:+(LocalRegistration(entry.id, entry.name, now))
+          }
         }
 
-      val (updatedOrRegistered, updatedTopicRegistrations) =
-        if (allowRegistration(now, startTime) || updated)
-          updated -> rs
-        else
-          true -> (rs :+ LocalRegistration(id, name, now)).sortBy(_.id)
+      sender() ! RefreshResult(accepted, rejected)
 
-      sender() ! updatedOrRegistered
-
-      context.become(handle(startTime, updateRegistrations(registrations, topic, updatedTopicRegistrations)))
+      context.become(handle(startTime, updateRegistrations(registrations, topic, rs)))
 
     case Remove(topic, id, name) =>
       val now = currentTime()
