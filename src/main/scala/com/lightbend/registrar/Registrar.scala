@@ -1,6 +1,7 @@
 package com.lightbend.registrar
 
 import akka.actor.ActorSystem
+import akka.typed.scaladsl.adapter._
 import akka.http.scaladsl.Http
 import akka.stream.ActorMaterializer
 
@@ -9,12 +10,13 @@ object Registrar {
     implicit val system = ActorSystem("registrar")
     implicit val materializer = ActorMaterializer()
     implicit val executionContext = system.dispatcher
-    val settings = new Settings(system.settings)
+    implicit val settings = new Settings(system.settings)
+    implicit val scheduler = system.scheduler
 
-    val registrationHandlerRef = system.actorOf(RegistrationHandler.props, "registration-handler")
+    val registrationHandlerRef = system.spawn(RegistrationHandler.behavior, "registration-handler")
 
     Http().bindAndHandle(
-      net.ControlProtocolRoute(registrationHandlerRef, settings),
+      net.ControlProtocolRoute(registrationHandlerRef),
       settings.net.bindInterface,
       settings.net.bindPort)
 
