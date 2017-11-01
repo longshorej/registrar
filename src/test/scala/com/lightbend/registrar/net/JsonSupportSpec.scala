@@ -1,9 +1,8 @@
 package com.lightbend.registrar.net
 
-import com.lightbend.registrar.RegistrationHandler.Record
-import org.scalatest.{ Matchers, WordSpec }
+import com.lightbend.registrar.RegistrationHandler.{Record, RefreshResult, Registration}
+import org.scalatest.{Matchers, WordSpec}
 import spray.json._
-
 import JsonSupport._
 
 class JsonSupportSpec extends WordSpec
@@ -17,6 +16,14 @@ class JsonSupportSpec extends WordSpec
       assertThrows[IllegalArgumentException] {
         Record(3, null, Vector.empty, 10000L).toJson.compactPrint
       }
+    }
+
+    "Encode RefreshResult" in {
+      RefreshResult(Set(Registration(1, "one")), Set(Registration(2, "two"))).toJson.compactPrint shouldEqual """{"accepted":[{"id":1,"name":"one"}],"rejected":[{"id":2,"name":"two"}]}"""
+    }
+
+    "Encode Registration" in {
+      Registration(1, "one").toJson.compactPrint shouldEqual """{"id":1,"name":"one"}"""
     }
   }
 }

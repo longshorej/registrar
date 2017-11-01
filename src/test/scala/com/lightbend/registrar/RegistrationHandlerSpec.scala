@@ -106,9 +106,31 @@ class RegistrationHandlerSpec() extends TestKit(ActorSystem("registrar", Registr
     "allow refresh during holding period" in {
       val handler = system.actorOf(RegistrationHandler.props)
 
-      handler ! RegistrationHandler.Refresh("test", 1, "one")
+      handler ! RegistrationHandler.Refresh("test", Set(RegistrationHandler.Registration(1, "one")))
 
-      expectMsg(true)
+      expectMsg(RegistrationHandler.RefreshResult(Set(RegistrationHandler.Registration(1, "one")), Set.empty))
+    }
+
+    "allow refresh of some and rejection of others" in {
+      val handler = system.actorOf(RegistrationHandler.props)
+
+      handler ! RegistrationHandler.EnableRegistration
+
+      handler ! RegistrationHandler.Register("test", "one")
+
+      expectMsg(Some(RegistrationHandler.Record(1, "one", Seq("one"), 10000L)))
+
+      handler ! RegistrationHandler.Refresh(
+        "test",
+        Set(RegistrationHandler.Registration(1, "one"), RegistrationHandler.Registration(2, "two"))
+      )
+
+      expectMsg(
+        RegistrationHandler.RefreshResult(
+          Set(RegistrationHandler.Registration(1, "one")),
+          Set(RegistrationHandler.Registration(2, "two"))
+        )
+      )
     }
 
     "reject refresh after holding period has passed" in {
@@ -116,9 +138,9 @@ class RegistrationHandlerSpec() extends TestKit(ActorSystem("registrar", Registr
 
       Thread.sleep(500)
 
-      handler ! RegistrationHandler.Refresh("test", 1, "one")
+      handler ! RegistrationHandler.Refresh("test", Set(RegistrationHandler.Registration(1, "one")))
 
-      expectMsg(false)
+      expectMsg(RegistrationHandler.RefreshResult(Set.empty, Set(RegistrationHandler.Registration(1, "one"))))
     }
 
     "remove items" in {
