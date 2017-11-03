@@ -2,10 +2,15 @@ package com.lightbend.registrar.net
 
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.pattern.ask
+import akka.typed.scaladsl.adapter._
 import akka.util.Timeout
-import com.lightbend.registrar.{ RegistrationHandler, Settings }
+import com.lightbend.registrar.{RegistrationHandler, Settings}
 import java.util.concurrent.TimeUnit
-import org.scalatest.{ Matchers, WordSpec }
+
+import akka.typed.ActorRef
+import akka.typed.scaladsl.AskPattern._
+import org.scalatest.{Matchers, WordSpec}
+
 import scala.concurrent.Await
 import scala.concurrent.duration._
 import spray.json._
@@ -16,8 +21,11 @@ class ControlProtocolRouteSpec extends WordSpec
   import RegistrationHandler._
   import JsonSupport._
 
+  implicit val settings = new Settings(system.settings)
+  implicit val scheduler = system.scheduler
+
   val handler = {
-    val h = system.actorOf(RegistrationHandler.props)
+    val h = system.spawn(RegistrationHandler.behavior, "registration-handler")
 
     implicit val timeout = Timeout(1, TimeUnit.SECONDS)
 
@@ -25,10 +33,10 @@ class ControlProtocolRouteSpec extends WordSpec
 
     Await.result(
       for {
-        _ <- h ? Register("test1", "test1")
-        _ <- h ? Register("test1", "test2")
-        _ <- h ? Register("test2", "test3")
-        _ <- h ? Register("test2", "test4")
+        _ <- h ? (Register("test1", "test1", _: ActorRef[Option[Record]]))
+        _ <- h ? (Register("test1", "test2", _: ActorRef[Option[Record]]))
+        _ <- h ? (Register("test2", "test3", _: ActorRef[Option[Record]]))
+        _ <- h ? (Register("test2", "test4", _: ActorRef[Option[Record]]))
       } yield {},
 
       5.seconds
@@ -37,7 +45,8 @@ class ControlProtocolRouteSpec extends WordSpec
     h
   }
 
-  val route = ControlProtocolRoute(handler, new Settings(system.settings))
+
+  val route = ControlProtocolRoute(handler)
 
   "ControlProtocolRoute" should {
     "respond to a /ping request" in {
