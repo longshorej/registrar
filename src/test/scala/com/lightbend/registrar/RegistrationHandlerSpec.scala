@@ -87,6 +87,22 @@ class RegistrationHandlerSpec() extends TestKit(ActorSystem("registrar", Registr
       expectMsg(Some(RegistrationHandler.Record(1, "one", Seq("one"), 10000L)))
     }
 
+    "allow registrations for a topic after that topic has been refreshed, but reject unknown topics" in {
+      val handler = system.spawnAnonymous(RegistrationHandler.behavior)
+
+      handler ! RegistrationHandler.Refresh("test1", Set(RegistrationHandler.Registration(1, "one")), self)
+
+      expectMsg(RegistrationHandler.RefreshResult(Set(RegistrationHandler.Registration(1, "one")), Set.empty))
+
+      handler ! RegistrationHandler.Register("test1", "two", self)
+
+      expectMsg(Some(RegistrationHandler.Record(2, "two", Seq("one", "two"), 10000L)))
+
+      handler ! RegistrationHandler.Register("test2", "one", self)
+
+      expectMsg(None)
+    }
+
     "exclude expired values" in {
       val handler = system.spawnAnonymous(RegistrationHandler.behavior)
 

@@ -32,8 +32,23 @@ object RegistrationHandler {
 
   def behavior(implicit settings: Settings): Behavior[Message] = handle(currentTime(), Map.empty)
 
-  private def allowRegistration(now: Long, startTime: Long)(implicit settings: Settings) =
-    now >= startTime + settings.registration.holdingPeriod.duration.toMillis
+  /**
+   * Determines if we can register for the given `topic`. We allow registrations if we're not in the holding
+   * period, or if we have a record of any registrations for that topic (acquired via refresh)
+   */
+  private def allowRegistration(topic: String,
+                                registrations: Map[String, Seq[LocalRegistration]],
+                                now: Long,
+                                startTime: Long)(implicit settings: Settings) =
+    !inHoldingPeriod(now, startTime) || registrationsForTopic(registrations, now, topic).nonEmpty
+
+  /**
+   * When we first start up, we are in a holding period for a configurable amount of settings. During this time
+   * only refresh requests will be allowed (so as to rebuild state if rescheduled). However, once we become aware
+   * of a topic via refresh, we then allow registration.
+   */
+  private def inHoldingPeriod(now: Long, startTime: Long)(implicit settings: Settings) =
+    now < startTime + settings.registration.holdingPeriod.duration.toMillis
 
   private def currentTime(): Long =
     Instant.now.toEpochMilli
@@ -84,7 +99,7 @@ object RegistrationHandler {
           val now = currentTime()
           val topicRegistrations = registrationsForTopic(registrations, now, topic)
 
-          if (!allowRegistration(now, startTime) || topicRegistrations.exists(_.name == name)) {
+          if (!allowRegistration(topic, registrations, now, startTime) || topicRegistrations.exists(_.name == name)) {
             replyTo ! None
 
             Actor.same
@@ -109,16 +124,16 @@ object RegistrationHandler {
           val now = currentTime()
           val topicRegistrations = registrationsForTopic(registrations, now, topic)
           val topicRegistrationsSet = topicRegistrations.map(_.registration).toSet
-          val allowReg = allowRegistration(now, startTime)
+          val inHolding = inHoldingPeriod(now, startTime)
 
           val (accepted, rejected) =
-            if (allowReg)
+            if (!inHolding)
               names.partition(topicRegistrationsSet.contains)
             else
               names -> Set.empty[Registration]
 
           val rs =
-            if (allowReg) {
+            if (!inHolding) {
               topicRegistrations.foldLeft(Seq.empty[LocalRegistration]) { case (entries, entry) =>
                 if (accepted.contains(entry.registration))
                   entries :+ LocalRegistration(entry.id, entry.name, now)
