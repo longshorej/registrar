@@ -4,20 +4,20 @@ import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.pattern.ask
 import akka.typed.scaladsl.adapter._
 import akka.util.Timeout
-import com.lightbend.registrar.{RegistrationHandler, Settings}
+import com.lightbend.registrar.{ RegistrationHandler, Settings }
 import java.util.concurrent.TimeUnit
 
 import akka.typed.ActorRef
 import akka.typed.scaladsl.AskPattern._
-import org.scalatest.{Matchers, WordSpec}
+import org.scalatest.{ Matchers, WordSpec }
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
 import spray.json._
 
 class ControlProtocolRouteSpec extends WordSpec
-                               with Matchers
-                               with ScalatestRouteTest {
+  with Matchers
+  with ScalatestRouteTest {
   import RegistrationHandler._
   import JsonSupport._
 
@@ -39,12 +39,10 @@ class ControlProtocolRouteSpec extends WordSpec
         _ <- h ? (Register("test2", "test4", _: ActorRef[Option[Record]]))
       } yield {},
 
-      5.seconds
-    )
+      5.seconds)
 
     h
   }
-
 
   val route = ControlProtocolRoute(handler)
 

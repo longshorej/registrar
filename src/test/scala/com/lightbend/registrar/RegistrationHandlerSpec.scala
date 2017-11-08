@@ -8,7 +8,6 @@ import com.typesafe.config.ConfigFactory
 import org.scalatest.{ BeforeAndAfterAll, Matchers, WordSpecLike }
 import scala.collection.immutable.Seq
 
-
 object RegistrationHandlerSpec {
   def config = ConfigFactory
     .parseString(
@@ -16,16 +15,15 @@ object RegistrationHandlerSpec {
           |  registration.expire-after = 250ms
           |  registration.holding-period = 250ms
           |}
-          |""".stripMargin
-    )
+          |""".stripMargin)
     .withFallback(ConfigFactory.defaultApplication())
 }
 
 class RegistrationHandlerSpec() extends TestKit(ActorSystem("registrar", RegistrationHandlerSpec.config))
-                                with ImplicitSender
-                                with WordSpecLike
-                                with Matchers
-                                with BeforeAndAfterAll {
+  with ImplicitSender
+  with WordSpecLike
+  with Matchers
+  with BeforeAndAfterAll {
   override def afterAll {
     TestKit.shutdownActorSystem(system)
   }
@@ -143,15 +141,12 @@ class RegistrationHandlerSpec() extends TestKit(ActorSystem("registrar", Registr
       handler ! RegistrationHandler.Refresh(
         "test",
         Set(RegistrationHandler.Registration(1, "one"), RegistrationHandler.Registration(2, "two")),
-        self
-      )
+        self)
 
       expectMsg(
         RegistrationHandler.RefreshResult(
           Set(RegistrationHandler.Registration(1, "one")),
-          Set(RegistrationHandler.Registration(2, "two"))
-        )
-      )
+          Set(RegistrationHandler.Registration(2, "two"))))
     }
 
     "reject refresh after holding period has passed" in {

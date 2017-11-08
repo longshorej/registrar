@@ -36,10 +36,11 @@ object RegistrationHandler {
    * Determines if we can register for the given `topic`. We allow registrations if we're not in the holding
    * period, or if we have a record of any registrations for that topic (acquired via refresh)
    */
-  private def allowRegistration(topic: String,
-                                registrations: Map[String, Seq[LocalRegistration]],
-                                now: Long,
-                                startTime: Long)(implicit settings: Settings) =
+  private def allowRegistration(
+    topic: String,
+    registrations: Map[String, Seq[LocalRegistration]],
+    now: Long,
+    startTime: Long)(implicit settings: Settings) =
     !inHoldingPeriod(now, startTime) || registrationsForTopic(registrations, now, topic).nonEmpty
 
   /**
@@ -56,26 +57,24 @@ object RegistrationHandler {
   private def expired(now: Long, value: Long)(implicit settings: Settings) =
     now >= value + settings.registration.expireAfter.duration.toMillis
 
-  private def hasRegistrationForTopic(registrations: Map[String, Seq[LocalRegistration]], now: Long, topic: String)
-                                     (implicit settings: Settings) =
+  private def hasRegistrationForTopic(registrations: Map[String, Seq[LocalRegistration]], now: Long, topic: String)(implicit settings: Settings) =
     registrations.get(topic).fold(false)(_.exists(e => !expired(now, e.lastUpdated)))
 
-  private def registrationsForTopic(registrations: Map[String, Seq[LocalRegistration]], now: Long, topic: String)
-                                   (implicit settings: Settings) =
+  private def registrationsForTopic(registrations: Map[String, Seq[LocalRegistration]], now: Long, topic: String)(implicit settings: Settings) =
     registrations
       .getOrElse(topic, Vector.empty)
       .filterNot(e => expired(now, e.lastUpdated))
 
-  private def updateRegistrations(allRegistrations: Map[String, Seq[LocalRegistration]],
-                                  topic: String,
-                                  registrations: Seq[LocalRegistration]) =
+  private def updateRegistrations(
+    allRegistrations: Map[String, Seq[LocalRegistration]],
+    topic: String,
+    registrations: Seq[LocalRegistration]) =
     if (registrations.isEmpty)
       allRegistrations - topic
     else
       allRegistrations.updated(topic, registrations)
 
-  private def handle(startTime: Long, registrations: Map[String, Seq[LocalRegistration]])
-                    (implicit settings: Settings): Behavior[Message] =
+  private def handle(startTime: Long, registrations: Map[String, Seq[LocalRegistration]])(implicit settings: Settings): Behavior[Message] =
     Actor.immutable[Message] { (ctx, message) =>
       message match {
         case EnableRegistration =>
@@ -113,9 +112,7 @@ object RegistrationHandler {
                 registration.id,
                 name,
                 newTopicRegistrations.map(_.name),
-                settings.registration.refreshInterval.duration.toMillis
-              )
-            )
+                settings.registration.refreshInterval.duration.toMillis))
 
             handle(startTime, updateRegistrations(registrations, topic, newTopicRegistrations))
           }
@@ -134,17 +131,19 @@ object RegistrationHandler {
 
           val rs =
             if (!inHolding) {
-              topicRegistrations.foldLeft(Seq.empty[LocalRegistration]) { case (entries, entry) =>
-                if (accepted.contains(entry.registration))
-                  entries :+ LocalRegistration(entry.id, entry.name, now)
-                else
-                  entries :+ entry
+              topicRegistrations.foldLeft(Seq.empty[LocalRegistration]) {
+                case (entries, entry) =>
+                  if (accepted.contains(entry.registration))
+                    entries :+ LocalRegistration(entry.id, entry.name, now)
+                  else
+                    entries :+ entry
               }
             } else {
-              accepted.foldLeft(topicRegistrations) { case (entries, entry) =>
-                entries
-                  .filterNot(_.name == entry.name)
-                  .:+(LocalRegistration(entry.id, entry.name, now))
+              accepted.foldLeft(topicRegistrations) {
+                case (entries, entry) =>
+                  entries
+                    .filterNot(_.name == entry.name)
+                    .:+(LocalRegistration(entry.id, entry.name, now))
               }
             }
 
