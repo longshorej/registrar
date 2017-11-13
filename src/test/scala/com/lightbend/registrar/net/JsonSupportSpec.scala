@@ -1,12 +1,12 @@
 package com.lightbend.registrar.net
 
-import com.lightbend.registrar.RegistrationHandler.{Record, RefreshResult, Registration}
-import org.scalatest.{Matchers, WordSpec}
+import com.lightbend.registrar.RegistrationHandler.{ Record, RefreshResult, Registration }
+import org.scalatest.{ Matchers, WordSpec }
 import spray.json._
 import JsonSupport._
 
 class JsonSupportSpec extends WordSpec
-                      with Matchers {
+  with Matchers {
   "JsonSupportSpec" should {
     "Encode Record" in {
       Record(1, "hello", Vector("foo", "bar"), 10000L).toJson.compactPrint shouldEqual """{"id":1,"name":"hello","members":["foo","bar"],"refreshInterval":10000}"""
