@@ -19,7 +19,7 @@ object RegistrationHandlerSpec {
     .withFallback(ConfigFactory.defaultApplication())
 }
 
-class RegistrationHandlerSpec() extends TestKit(ActorSystem("registrar", RegistrationHandlerSpec.config))
+class RegistrationHandlerSpec extends TestKit(ActorSystem("registrar", RegistrationHandlerSpec.config))
   with ImplicitSender
   with WordSpecLike
   with Matchers
@@ -90,7 +90,7 @@ class RegistrationHandlerSpec() extends TestKit(ActorSystem("registrar", Registr
 
       handler ! RegistrationHandler.Refresh("test1", Set(RegistrationHandler.Registration(1, "one")), self)
 
-      expectMsg(RegistrationHandler.RefreshResult(Set(RegistrationHandler.Registration(1, "one")), Set.empty))
+      expectMsg(RegistrationHandler.RefreshResult(Set(RegistrationHandler.Registration(1, "one")), Set.empty, 10000L))
 
       handler ! RegistrationHandler.Register("test1", "two", self)
 
@@ -126,7 +126,7 @@ class RegistrationHandlerSpec() extends TestKit(ActorSystem("registrar", Registr
 
       handler ! RegistrationHandler.Refresh("test", Set(RegistrationHandler.Registration(1, "one")), self)
 
-      expectMsg(RegistrationHandler.RefreshResult(Set(RegistrationHandler.Registration(1, "one")), Set.empty))
+      expectMsg(RegistrationHandler.RefreshResult(Set(RegistrationHandler.Registration(1, "one")), Set.empty, 10000L))
     }
 
     "allow refresh of some and rejection of others" in {
@@ -146,7 +146,8 @@ class RegistrationHandlerSpec() extends TestKit(ActorSystem("registrar", Registr
       expectMsg(
         RegistrationHandler.RefreshResult(
           Set(RegistrationHandler.Registration(1, "one")),
-          Set(RegistrationHandler.Registration(2, "two"))))
+          Set(RegistrationHandler.Registration(2, "two")),
+          10000L))
     }
 
     "reject refresh after holding period has passed" in {
@@ -156,7 +157,7 @@ class RegistrationHandlerSpec() extends TestKit(ActorSystem("registrar", Registr
 
       handler ! RegistrationHandler.Refresh("test", Set(RegistrationHandler.Registration(1, "one")), self)
 
-      expectMsg(RegistrationHandler.RefreshResult(Set.empty, Set(RegistrationHandler.Registration(1, "one"))))
+      expectMsg(RegistrationHandler.RefreshResult(Set.empty, Set(RegistrationHandler.Registration(1, "one")), 10000L))
     }
 
     "remove items" in {

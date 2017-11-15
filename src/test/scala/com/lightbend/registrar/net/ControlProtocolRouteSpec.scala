@@ -1,23 +1,20 @@
 package com.lightbend.registrar.net
 
 import akka.http.scaladsl.testkit.ScalatestRouteTest
-import akka.pattern.ask
 import akka.typed.scaladsl.adapter._
+import akka.typed.ActorRef
+import akka.typed.scaladsl.AskPattern._
 import akka.util.Timeout
 import com.lightbend.registrar.{ RegistrationHandler, Settings }
 import java.util.concurrent.TimeUnit
-
-import akka.typed.ActorRef
-import akka.typed.scaladsl.AskPattern._
 import org.scalatest.{ Matchers, WordSpec }
-
 import scala.concurrent.Await
 import scala.concurrent.duration._
-import spray.json._
 
 class ControlProtocolRouteSpec extends WordSpec
   with Matchers
   with ScalatestRouteTest {
+  import ControlProtocolRoute._
   import RegistrationHandler._
   import JsonSupport._
 
@@ -82,41 +79,41 @@ class ControlProtocolRouteSpec extends WordSpec
     }
 
     "create new member in a topic" in {
-      Post("/topics/test1/register", "test5") ~> route ~> check {
+      Post("/topics/test1/register", RegistrationRequest("test5")) ~> route ~> check {
         response.status.isSuccess shouldEqual true
         responseAs[String] shouldEqual """{"id":3,"name":"test5","members":["test1","test2","test5"],"refreshInterval":10000}"""
       }
     }
 
     "not create a new member in a topic (duplicate)" in {
-      Post("/topics/test1/register", "test2") ~> route ~> check {
+      Post("/topics/test1/register", RegistrationRequest("test2")) ~> route ~> check {
         response.status.isFailure shouldEqual true
       }
     }
 
     "refresh a member" in {
-      Post("/topics/test1/refresh", Set(Registration(1, "test1"))) ~> route ~> check {
+      Post("/topics/test1/refresh", RefreshRequest(Set(Registration(1, "test1")))) ~> route ~> check {
         response.status.isSuccess shouldEqual true
-        responseAs[String] shouldEqual """{"accepted":[{"id":1,"name":"test1"}],"rejected":[]}"""
+        responseAs[String] shouldEqual """{"accepted":[{"id":1,"name":"test1"}],"rejected":[],"refreshInterval":10000}"""
       }
     }
 
     "not refresh an invalid member" in {
-      Post("/topics/test1/refresh", Vector(Registration(12345, "test32"))) ~> route ~> check {
+      Post("/topics/test1/refresh", RefreshRequest(Set(Registration(12345, "test32")))) ~> route ~> check {
         response.status.isSuccess shouldEqual true
-        responseAs[String] shouldEqual """{"accepted":[],"rejected":[{"id":12345,"name":"test32"}]}"""
+        responseAs[String] shouldEqual """{"accepted":[],"rejected":[{"id":12345,"name":"test32"}],"refreshInterval":10000}"""
       }
     }
 
     "remove a member" in {
-      Delete("/topics/test1/1/test1") ~> route ~> check {
+      Delete("/topics/test1/remove", RemoveRequest(1, "test1")) ~> route ~> check {
         response.status.isSuccess shouldEqual true
         responseAs[String] shouldEqual """OK"""
       }
     }
 
     "not remove an invalid member" in {
-      Delete("/topics/test1/12345/test1") ~> route ~> check {
+      Delete("/topics/test1/remove", RemoveRequest(12345, "test1")) ~> route ~> check {
         response.status.isFailure shouldEqual true
       }
     }

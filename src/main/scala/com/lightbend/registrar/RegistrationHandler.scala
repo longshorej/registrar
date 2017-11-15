@@ -26,7 +26,7 @@ object RegistrationHandler {
 
   final case class Refresh(topic: String, registrations: Set[Registration], replyTo: ActorRef[RefreshResult]) extends Message
 
-  final case class RefreshResult(accepted: Set[Registration], rejected: Set[Registration])
+  final case class RefreshResult(accepted: Set[Registration], rejected: Set[Registration], refreshInterval: Long)
 
   final case class Remove(topic: String, id: Int, name: String, replyTo: ActorRef[Boolean]) extends Message
 
@@ -147,7 +147,7 @@ object RegistrationHandler {
               }
             }
 
-          replyTo ! RefreshResult(accepted, rejected)
+          replyTo ! RefreshResult(accepted, rejected, settings.registration.refreshInterval.duration.toMillis)
 
           handle(startTime, updateRegistrations(registrations, topic, rs))
 
