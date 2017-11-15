@@ -11,17 +11,17 @@ class JsonSupportSpec extends WordSpec
 
   "JsonSupportSpec" should {
     "Encode Record" in {
-      Record(1, "hello", Vector("foo", "bar"), 10000L).toJson.compactPrint shouldEqual """{"id":1,"name":"hello","members":["foo","bar"],"refreshInterval":10000}"""
+      Record(1, "hello", Vector("foo", "bar"), 10000L, 60000L).toJson.compactPrint shouldEqual """{"name":"hello","expireAfter":60000,"refreshInterval":10000,"id":1,"members":["foo","bar"]}"""
 
-      Record(2, "", Vector.empty, 10000L).toJson.compactPrint shouldEqual """{"id":2,"name":"","members":[],"refreshInterval":10000}"""
+      Record(2, "", Vector.empty, 10000L, 60000L).toJson.compactPrint shouldEqual """{"name":"","expireAfter":60000,"refreshInterval":10000,"id":2,"members":[]}"""
 
       assertThrows[IllegalArgumentException] {
-        Record(3, null, Vector.empty, 10000L).toJson.compactPrint
+        Record(3, null, Vector.empty, 10000L, 60000L).toJson.compactPrint
       }
     }
 
     "Encode RefreshResult" in {
-      RefreshResult(Set(Registration(1, "one")), Set(Registration(2, "two")), 100).toJson.compactPrint shouldEqual """{"accepted":[{"id":1,"name":"one"}],"rejected":[{"id":2,"name":"two"}],"refreshInterval":100}"""
+      RefreshResult(Set(Registration(1, "one")), Set(Registration(2, "two")), 100, 6000).toJson.compactPrint shouldEqual """{"accepted":[{"id":1,"name":"one"}],"rejected":[{"id":2,"name":"two"}],"refreshInterval":100,"expireAfter":6000}"""
     }
 
     "Encode Registration" in {

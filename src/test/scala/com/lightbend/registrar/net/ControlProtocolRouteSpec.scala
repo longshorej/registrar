@@ -10,6 +10,7 @@ import java.util.concurrent.TimeUnit
 import org.scalatest.{ Matchers, WordSpec }
 import scala.concurrent.Await
 import scala.concurrent.duration._
+import spray.json._
 
 class ControlProtocolRouteSpec extends WordSpec
   with Matchers
@@ -67,7 +68,8 @@ class ControlProtocolRouteSpec extends WordSpec
     "list members of a known topic" in {
       Get("/topics/test1") ~> route ~> check {
         response.status.isSuccess shouldEqual true
-        responseAs[String] shouldEqual """[{"id":1,"name":"test1","members":["test1","test2"],"refreshInterval":10000},{"id":2,"name":"test2","members":["test1","test2"],"refreshInterval":10000}]"""
+
+        responseAs[String] shouldEqual """[{"name":"test1","expireAfter":60000,"refreshInterval":10000,"id":1,"members":["test1","test2"]},{"name":"test2","expireAfter":60000,"refreshInterval":10000,"id":2,"members":["test1","test2"]}]"""
       }
     }
 
@@ -81,7 +83,8 @@ class ControlProtocolRouteSpec extends WordSpec
     "create new member in a topic" in {
       Post("/topics/test1/register", RegistrationRequest("test5")) ~> route ~> check {
         response.status.isSuccess shouldEqual true
-        responseAs[String] shouldEqual """{"id":3,"name":"test5","members":["test1","test2","test5"],"refreshInterval":10000}"""
+
+        responseAs[String] shouldEqual """{"name":"test5","expireAfter":60000,"refreshInterval":10000,"id":3,"members":["test1","test2","test5"]}"""
       }
     }
 
@@ -94,14 +97,14 @@ class ControlProtocolRouteSpec extends WordSpec
     "refresh a member" in {
       Post("/topics/test1/refresh", RefreshRequest(Set(Registration(1, "test1")))) ~> route ~> check {
         response.status.isSuccess shouldEqual true
-        responseAs[String] shouldEqual """{"accepted":[{"id":1,"name":"test1"}],"rejected":[],"refreshInterval":10000}"""
+        responseAs[String] shouldEqual """{"accepted":[{"id":1,"name":"test1"}],"rejected":[],"refreshInterval":10000,"expireAfter":60000}"""
       }
     }
 
     "not refresh an invalid member" in {
       Post("/topics/test1/refresh", RefreshRequest(Set(Registration(12345, "test32")))) ~> route ~> check {
         response.status.isSuccess shouldEqual true
-        responseAs[String] shouldEqual """{"accepted":[],"rejected":[{"id":12345,"name":"test32"}],"refreshInterval":10000}"""
+        responseAs[String] shouldEqual """{"accepted":[],"rejected":[{"id":12345,"name":"test32"}],"refreshInterval":10000,"expireAfter":60000}"""
       }
     }
 

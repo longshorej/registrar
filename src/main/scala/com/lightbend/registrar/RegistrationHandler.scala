@@ -10,7 +10,7 @@ object RegistrationHandler {
 
   final case object EnableRegistration extends Message
 
-  final case class Record(id: Int, name: String, members: Seq[String], refreshInterval: Long)
+  final case class Record(id: Int, name: String, members: Seq[String], refreshInterval: Long, expireAfter: Long)
 
   final case class LocalRegistration(id: Int, name: String, lastUpdated: Long) {
     val registration: Registration = Registration(id, name)
@@ -26,7 +26,7 @@ object RegistrationHandler {
 
   final case class Refresh(topic: String, registrations: Set[Registration], replyTo: ActorRef[RefreshResult]) extends Message
 
-  final case class RefreshResult(accepted: Set[Registration], rejected: Set[Registration], refreshInterval: Long)
+  final case class RefreshResult(accepted: Set[Registration], rejected: Set[Registration], refreshInterval: Long, expireAfter: Long)
 
   final case class Remove(topic: String, id: Int, name: String, replyTo: ActorRef[Boolean]) extends Message
 
@@ -75,7 +75,7 @@ object RegistrationHandler {
       allRegistrations.updated(topic, registrations)
 
   private def handle(startTime: Long, registrations: Map[String, Seq[LocalRegistration]])(implicit settings: Settings): Behavior[Message] =
-    Actor.immutable[Message] { (ctx, message) =>
+    Actor.immutable[Message] { (_, message) =>
       message match {
         case EnableRegistration =>
           handle(0L, registrations)
@@ -90,7 +90,14 @@ object RegistrationHandler {
           val rs = registrationsForTopic(registrations, now, topic)
           val names = rs.map(_.name)
 
-          replyTo ! rs.map(r => Record(r.id, r.name, names, settings.registration.refreshInterval.duration.toMillis))
+          replyTo ! rs
+            .map(r =>
+              Record(
+                r.id,
+                r.name,
+                names,
+                settings.registration.refreshInterval.duration.toMillis,
+                settings.registration.expireAfter.duration.toMillis))
 
           Actor.same
 
@@ -112,7 +119,8 @@ object RegistrationHandler {
                 registration.id,
                 name,
                 newTopicRegistrations.map(_.name),
-                settings.registration.refreshInterval.duration.toMillis))
+                settings.registration.refreshInterval.duration.toMillis,
+                settings.registration.expireAfter.duration.toMillis))
 
             handle(startTime, updateRegistrations(registrations, topic, newTopicRegistrations))
           }
@@ -147,14 +155,18 @@ object RegistrationHandler {
               }
             }
 
-          replyTo ! RefreshResult(accepted, rejected, settings.registration.refreshInterval.duration.toMillis)
+          replyTo ! RefreshResult(
+            accepted,
+            rejected,
+            settings.registration.refreshInterval.duration.toMillis,
+            settings.registration.expireAfter.duration.toMillis)
 
           handle(startTime, updateRegistrations(registrations, topic, rs))
 
         case Remove(topic, id, name, replyTo) =>
           val now = currentTime()
           val original = registrationsForTopic(registrations, now, topic)
-          val modified = original.filterNot(e => e.name == name && e.id == id)
+          val modified = original.filterNot(e => e.name == name && (id == 0 || e.id == id))
 
           replyTo ! (original.length != modified.length)
 
