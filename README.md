@@ -2,7 +2,7 @@
 
 ## About
 
-This project implements an in-memory coordinator that can be used with [reactive-lib]()
+This project implements an in-memory coordinator that can be used with [reactive-lib](https://github.com/lightbend/reactive-lib)
 to bootstrap Akka-cluster based applications.
 
 Its state is kept entirely in memory and managed `RegistrationHandler`. Clients are expected to refresh their 
