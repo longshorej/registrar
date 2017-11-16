@@ -6,7 +6,7 @@ import akka.typed.scaladsl.AskPattern._
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server._
 import com.lightbend.registrar.{ RegistrationHandler, Settings }
-
+import java.util.UUID
 import scala.collection.immutable.Seq
 import scala.concurrent.{ ExecutionContext, Future }
 
@@ -19,7 +19,7 @@ object ControlProtocolRoute {
    * Control protocol encoding for registering. During the holding period, this will be rejected.
    * @param name
    */
-  final case class RegistrationRequest(name: String)
+  final case class RegistrationRequest(id: UUID, name: String)
 
   /**
    * Control protocol encoding for refreshing zero or more registrations. During the holding period, this will
@@ -30,7 +30,7 @@ object ControlProtocolRoute {
   /**
    * Control protocol encoding for removing a member from the list.
    */
-  final case class RemoveRequest(id: Int, name: String)
+  final case class RemoveRequest(id: UUID, name: String)
 
   def apply(registrationHandlerRef: ActorRef[Message])(implicit system: ActorSystem, ec: ExecutionContext, settings: Settings, scheduler: Scheduler) = {
     import settings.net.askTimeout
@@ -46,8 +46,8 @@ object ControlProtocolRoute {
             complete(registrationHandlerRef ? (Inspect(topic, _)): Future[Seq[RegistrationHandler.Record]])
           } ~
           (post & path(Segment / "register") & entity(as[RegistrationRequest])) {
-            case (topic, RegistrationRequest(name)) =>
-              onSuccess(registrationHandlerRef ? (Register(topic, name, _: ActorRef[Option[Record]]))) {
+            case (topic, RegistrationRequest(id, name)) =>
+              onSuccess(registrationHandlerRef ? (Register(topic, id, name, _: ActorRef[Option[Record]]))) {
                 case None => complete(StatusCodes.BadRequest)
                 case Some(r) => complete(r)
               }

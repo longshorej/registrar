@@ -3,6 +3,7 @@ package com.lightbend.registrar
 import akka.typed._
 import akka.typed.scaladsl._
 import java.time.Instant
+import java.util.UUID
 import scala.collection.immutable.Seq
 
 object RegistrationHandler {
@@ -10,25 +11,25 @@ object RegistrationHandler {
 
   final case object EnableRegistration extends Message
 
-  final case class Record(id: Int, name: String, members: Seq[String], refreshInterval: Long, expireAfter: Long)
+  final case class Record(id: UUID, name: String, members: Seq[String], refreshInterval: Long, expireAfter: Long)
 
-  final case class LocalRegistration(id: Int, name: String, lastUpdated: Long) {
+  final case class LocalRegistration(id: UUID, name: String, lastUpdated: Long) {
     val registration: Registration = Registration(id, name)
   }
 
-  final case class Registration(id: Int, name: String)
+  final case class Registration(id: UUID, name: String)
 
   final case class InspectTopics(replyTo: ActorRef[Set[String]]) extends Message
 
   final case class Inspect(topic: String, replyTo: ActorRef[Seq[Record]]) extends Message
 
-  final case class Register(topic: String, name: String, replyTo: ActorRef[Option[Record]]) extends Message
+  final case class Register(topic: String, id: UUID, name: String, replyTo: ActorRef[Option[Record]]) extends Message
 
   final case class Refresh(topic: String, registrations: Set[Registration], replyTo: ActorRef[RefreshResult]) extends Message
 
   final case class RefreshResult(accepted: Set[Registration], rejected: Set[Registration], refreshInterval: Long, expireAfter: Long)
 
-  final case class Remove(topic: String, id: Int, name: String, replyTo: ActorRef[Boolean]) extends Message
+  final case class Remove(topic: String, id: UUID, name: String, replyTo: ActorRef[Boolean]) extends Message
 
   def behavior(implicit settings: Settings): Behavior[Message] = handle(currentTime(), Map.empty)
 
@@ -101,16 +102,27 @@ object RegistrationHandler {
 
           Actor.same
 
-        case Register(topic, name, replyTo) =>
+        case Register(topic, id, name, replyTo) =>
           val now = currentTime()
           val topicRegistrations = registrationsForTopic(registrations, now, topic)
+          val currentRegistration = topicRegistrations.find(r => r.id == id && r.name == name)
 
-          if (!allowRegistration(topic, registrations, now, startTime) || topicRegistrations.exists(_.name == name)) {
+          if (currentRegistration.nonEmpty) {
+            replyTo ! currentRegistration.map(r =>
+              Record(
+                r.id,
+                r.name,
+                topicRegistrations.map(_.name),
+                settings.registration.refreshInterval.duration.toMillis,
+                settings.registration.expireAfter.duration.toMillis))
+
+            Actor.same
+          } else if (!allowRegistration(topic, registrations, now, startTime) || topicRegistrations.exists(_.name == name)) {
             replyTo ! None
 
             Actor.same
           } else {
-            val registration = LocalRegistration(topicRegistrations.lastOption.fold(1)(_.id + 1), name, now)
+            val registration = LocalRegistration(id, name, now)
 
             val newTopicRegistrations = topicRegistrations :+ registration
 
@@ -166,7 +178,7 @@ object RegistrationHandler {
         case Remove(topic, id, name, replyTo) =>
           val now = currentTime()
           val original = registrationsForTopic(registrations, now, topic)
-          val modified = original.filterNot(e => e.name == name && (id == 0 || e.id == id))
+          val modified = original.filterNot(e => e.name == name && e.id == id)
 
           replyTo ! (original.length != modified.length)
 
