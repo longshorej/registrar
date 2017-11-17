@@ -48,7 +48,7 @@ TaskKey[Unit]("dockerTagAndWarnAboutPublishing") := {
   }
 
   streams.value.log.warn("The build has been completed but the application has not been published. Consult the Platform Tooling Release Process document in Google Drive.")
-  streams.value.log.warn(s"""To publish: docker publish "$tag"""")
+  streams.value.log.warn(s"""To publish: docker push "$tag"""")
 }
 
 releaseProcess := Seq[ReleaseStep](
@@ -56,11 +56,11 @@ releaseProcess := Seq[ReleaseStep](
   inquireVersions,
   runClean,
   releaseStepCommandAndRemaining("test"),
+  setReleaseVersion,
+  commitReleaseVersion,
   releaseStepCommandAndRemaining("packageBin"),
   releaseStepCommandAndRemaining("docker:publishLocal"),
   releaseStepCommandAndRemaining("dockerTagAndWarnAboutPublishing"),
-  setReleaseVersion,
-  commitReleaseVersion,
   tagRelease,
   setNextVersion,
   commitNextVersion,
