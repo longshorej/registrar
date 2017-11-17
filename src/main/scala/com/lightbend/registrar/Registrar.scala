@@ -4,6 +4,7 @@ import akka.actor.ActorSystem
 import akka.typed.scaladsl.adapter._
 import akka.http.scaladsl.Http
 import akka.stream.ActorMaterializer
+import com.lightbend.rp.common.SocketBinding
 
 object Registrar {
   def main(args: Array[String]) {
@@ -14,12 +15,12 @@ object Registrar {
     implicit val scheduler = system.scheduler
 
     val registrationHandlerRef = system.spawn(RegistrationHandler.behavior, "registration-handler")
+    val host = SocketBinding.bindHost("http", settings.net.bindInterface)
+    val port = SocketBinding.bindPort("http", settings.net.bindPort)
+    val route = net.ControlProtocolRoute(registrationHandlerRef)
 
-    Http().bindAndHandle(
-      net.ControlProtocolRoute(registrationHandlerRef),
-      settings.net.bindInterface,
-      settings.net.bindPort)
+    Http().bindAndHandle(route, host, port)
 
-    system.log.info(s"Listening on ${settings.net.bindInterface}:${settings.net.bindPort}")
+    system.log.info(s"Listening on $host:$port")
   }
 }
