@@ -3,6 +3,7 @@ package com.lightbend.registrar
 import akka.typed._
 import akka.typed.scaladsl._
 import java.time.Instant
+import java.util.UUID
 import scala.collection.immutable.Seq
 
 object RegistrationHandler {
@@ -10,25 +11,25 @@ object RegistrationHandler {
 
   final case object EnableRegistration extends Message
 
-  final case class Record(id: Int, name: String, members: Seq[String], refreshInterval: Long)
+  final case class Record(id: UUID, name: String, members: Seq[String], refreshInterval: Long, expireAfter: Long)
 
-  final case class LocalRegistration(id: Int, name: String, lastUpdated: Long) {
+  final case class LocalRegistration(id: UUID, name: String, lastUpdated: Long) {
     val registration: Registration = Registration(id, name)
   }
 
-  final case class Registration(id: Int, name: String)
+  final case class Registration(id: UUID, name: String)
 
   final case class InspectTopics(replyTo: ActorRef[Set[String]]) extends Message
 
   final case class Inspect(topic: String, replyTo: ActorRef[Seq[Record]]) extends Message
 
-  final case class Register(topic: String, name: String, replyTo: ActorRef[Option[Record]]) extends Message
+  final case class Register(topic: String, id: UUID, name: String, replyTo: ActorRef[Option[Record]]) extends Message
 
   final case class Refresh(topic: String, registrations: Set[Registration], replyTo: ActorRef[RefreshResult]) extends Message
 
-  final case class RefreshResult(accepted: Set[Registration], rejected: Set[Registration])
+  final case class RefreshResult(accepted: Set[Registration], rejected: Set[Registration], refreshInterval: Long, expireAfter: Long)
 
-  final case class Remove(topic: String, id: Int, name: String, replyTo: ActorRef[Boolean]) extends Message
+  final case class Remove(topic: String, id: UUID, name: String, replyTo: ActorRef[Boolean]) extends Message
 
   def behavior(implicit settings: Settings): Behavior[Message] = handle(currentTime(), Map.empty)
 
@@ -75,7 +76,7 @@ object RegistrationHandler {
       allRegistrations.updated(topic, registrations)
 
   private def handle(startTime: Long, registrations: Map[String, Seq[LocalRegistration]])(implicit settings: Settings): Behavior[Message] =
-    Actor.immutable[Message] { (ctx, message) =>
+    Actor.immutable[Message] { (_, message) =>
       message match {
         case EnableRegistration =>
           handle(0L, registrations)
@@ -90,20 +91,38 @@ object RegistrationHandler {
           val rs = registrationsForTopic(registrations, now, topic)
           val names = rs.map(_.name)
 
-          replyTo ! rs.map(r => Record(r.id, r.name, names, settings.registration.refreshInterval.duration.toMillis))
+          replyTo ! rs
+            .map(r =>
+              Record(
+                r.id,
+                r.name,
+                names,
+                settings.registration.refreshInterval.duration.toMillis,
+                settings.registration.expireAfter.duration.toMillis))
 
           Actor.same
 
-        case Register(topic, name, replyTo) =>
+        case Register(topic, id, name, replyTo) =>
           val now = currentTime()
           val topicRegistrations = registrationsForTopic(registrations, now, topic)
+          val currentRegistration = topicRegistrations.find(r => r.id == id && r.name == name)
 
-          if (!allowRegistration(topic, registrations, now, startTime) || topicRegistrations.exists(_.name == name)) {
+          if (currentRegistration.nonEmpty) {
+            replyTo ! currentRegistration.map(r =>
+              Record(
+                r.id,
+                r.name,
+                topicRegistrations.map(_.name),
+                settings.registration.refreshInterval.duration.toMillis,
+                settings.registration.expireAfter.duration.toMillis))
+
+            Actor.same
+          } else if (!allowRegistration(topic, registrations, now, startTime) || topicRegistrations.exists(_.name == name)) {
             replyTo ! None
 
             Actor.same
           } else {
-            val registration = LocalRegistration(topicRegistrations.lastOption.fold(1)(_.id + 1), name, now)
+            val registration = LocalRegistration(id, name, now)
 
             val newTopicRegistrations = topicRegistrations :+ registration
 
@@ -112,7 +131,8 @@ object RegistrationHandler {
                 registration.id,
                 name,
                 newTopicRegistrations.map(_.name),
-                settings.registration.refreshInterval.duration.toMillis))
+                settings.registration.refreshInterval.duration.toMillis,
+                settings.registration.expireAfter.duration.toMillis))
 
             handle(startTime, updateRegistrations(registrations, topic, newTopicRegistrations))
           }
@@ -147,7 +167,11 @@ object RegistrationHandler {
               }
             }
 
-          replyTo ! RefreshResult(accepted, rejected)
+          replyTo ! RefreshResult(
+            accepted,
+            rejected,
+            settings.registration.refreshInterval.duration.toMillis,
+            settings.registration.expireAfter.duration.toMillis)
 
           handle(startTime, updateRegistrations(registrations, topic, rs))
 
