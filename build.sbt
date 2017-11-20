@@ -8,7 +8,7 @@ scalaVersion := Versions.Scala
 
 enablePlugins(SbtReactiveAppPlugin)
 
-endpoints := Vector(HttpEndpoint("http", 0))
+endpoints := Vector(HttpEndpoint("rp-registrar", 0))
 
 val Versions = new {
   val Akka      = "2.5.4"
