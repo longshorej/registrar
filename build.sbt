@@ -2,13 +2,13 @@ import scala.collection.immutable.Seq
 import scala.sys.process._
 import ReleaseTransformations._
 
-name := "registrar"
+name := "rp-registrar"
 
 scalaVersion := Versions.Scala
 
 enablePlugins(SbtReactiveAppPlugin)
 
-endpoints := Vector(HttpEndpoint("rp-registrar", 0))
+endpoints := Vector(HttpEndpoint("http", 0))
 
 val Versions = new {
   val Akka      = "2.5.4"
