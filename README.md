@@ -1,5 +1,7 @@
 # registrar
 
+**This project is no longer maintained. See [Akka Management](https://github.com/akka/akka-management) for a solution to Akka Cluster formation.**
+
 ## About
 
 This project implements an in-memory service list that can be used with
